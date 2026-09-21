@@ -577,9 +577,21 @@ button, input, textarea { font-family: inherit; }
   top: 0;
   left: 0;
   border-radius: 50%;
+  background: var(--accent);
   border: 2px solid #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   transition: box-shadow 0.15s var(--ease);
+}
+.pin-marker .pin-body::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%);
 }
 .pin-marker .pin-body::after {
   content: '';
@@ -591,22 +603,10 @@ button, input, textarea { font-family: inherit; }
   height: 0;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
-  border-top: 7px solid var(--pin-color, currentColor);
+  border-top: 7px solid var(--accent);
   filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
 }
 .pin-marker:hover .pin-body { box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
-.pin-marker .pin-initial {
-  position: absolute;
-  top: 3px;
-  left: 0;
-  width: 20px;
-  text-align: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 9px;
-  line-height: 14px;
-  pointer-events: none;
-}
 
 /* toasts */
 .toast-container {

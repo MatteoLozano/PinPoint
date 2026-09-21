@@ -208,10 +208,9 @@
   sidebarBackdrop.addEventListener('click', closeSidebar);
 
   document.getElementById('mapCodeChip').addEventListener('click', async () => {
-    const url = `${location.origin}/m/${state.code}`;
     try {
-      await navigator.clipboard.writeText(url);
-      showToast('Invite link copied!');
+      await navigator.clipboard.writeText(state.code);
+      showToast('Code copied!');
     } catch {
       showToast(`Share this code: ${state.code}`);
     }
@@ -231,13 +230,11 @@
     });
   }
 
-  function pinIcon(pin) {
-    const initial = (pin.authorName || '?').trim().charAt(0).toUpperCase() || '?';
+  function pinIcon() {
     return L.divIcon({
       className: 'pin-marker-wrapper',
       html: `<div class="pin-marker">
-               <div class="pin-body" style="background:${pin.authorColor}; --pin-color:${pin.authorColor}"></div>
-               <div class="pin-initial">${initial}</div>
+               <div class="pin-body"></div>
              </div>`,
       iconSize: [20, 26],
       iconAnchor: [10, 26],
@@ -397,13 +394,13 @@
       if (existing) {
         if (!pinsEqual(existing._pin, p)) {
           existing.setLatLng([p.lat, p.lng]);
-          existing.setIcon(pinIcon(p));
+          existing.setIcon(pinIcon());
           existing.setPopupContent(popupHtml(p));
           existing._pin = p;
         }
         continue;
       }
-      const marker = L.marker([p.lat, p.lng], { icon: pinIcon(p) }).addTo(map);
+      const marker = L.marker([p.lat, p.lng], { icon: pinIcon() }).addTo(map);
       marker.bindPopup(popupHtml(p));
       marker.on('popupopen', () => bindPopupActions());
       marker.on('click', () => setActiveListItem(p.id));
