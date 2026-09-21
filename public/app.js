@@ -83,38 +83,56 @@
   }
 
   // ---------- create / join ----------
-  document.getElementById('createForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    hideLandingError();
-    const mapName = document.getElementById('createMapName').value.trim();
-    const yourName = document.getElementById('createYourName').value.trim();
-    if (!mapName || !yourName) return;
-    const identity = { name: yourName, color: getCreateColor() };
-    try {
-      const res = await fetch('/api/maps', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: mapName }),
-      });
-      if (!res.ok) throw new Error('create failed');
-      const created = await res.json();
-      saveIdentity(created.code, identity);
-      await enterMap(created.code, identity);
-    } catch {
-      showLandingError("Couldn't create the map right now. Please try again.");
-    }
-  });
+  function withLoading(btn, fn) {
+    return async (e) => {
+      e.preventDefault();
+      btn.classList.add('btn-loading');
+      btn.disabled = true;
+      try {
+        await fn();
+      } finally {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+      }
+    };
+  }
 
-  document.getElementById('joinForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    hideLandingError();
-    const code = document.getElementById('joinCode').value.trim().toUpperCase();
-    const yourName = document.getElementById('joinYourName').value.trim();
-    if (!code || !yourName) return;
-    const identity = { name: yourName, color: getJoinColor() };
-    saveIdentity(code, identity);
-    await enterMap(code, identity);
-  });
+  document.getElementById('createForm').addEventListener(
+    'submit',
+    withLoading(document.querySelector('#createForm button[type="submit"]'), async () => {
+      hideLandingError();
+      const mapName = document.getElementById('createMapName').value.trim();
+      const yourName = document.getElementById('createYourName').value.trim();
+      if (!mapName || !yourName) return;
+      const identity = { name: yourName, color: getCreateColor() };
+      try {
+        const res = await fetch('/api/maps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: mapName }),
+        });
+        if (!res.ok) throw new Error('create failed');
+        const created = await res.json();
+        saveIdentity(created.code, identity);
+        await enterMap(created.code, identity);
+      } catch {
+        showLandingError("Couldn't create the map right now. Please try again.");
+      }
+    })
+  );
+
+  document.getElementById('joinForm').addEventListener(
+    'submit',
+    withLoading(document.querySelector('#joinForm button[type="submit"]'), async () => {
+      hideLandingError();
+      const code = document.getElementById('joinCode').value.trim().toUpperCase();
+      const yourName = document.getElementById('joinYourName').value.trim();
+      if (!code || !yourName) return;
+      const identity = { name: yourName, color: getJoinColor() };
+      saveIdentity(code, identity);
+      await enterMap(code, identity);
+    })
+  );
 
   // ---------- entering / leaving a map ----------
   async function enterMap(code, identity) {
@@ -183,7 +201,7 @@
 
   // ---------- map ----------
   function initMap() {
-    map = L.map('map', { zoomControl: true, worldCopyJump: true }).setView([20, 0], 2.4);
+    map = L.map('map', { zoomControl: true, worldCopyJump: true, fadeAnimation: true }).setView([20, 0], 2.4);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19,
@@ -279,11 +297,42 @@
     upsertPinLocal(pin);
   }
 
-  async function deletePinRemote(id) {
-    await fetch(`/api/maps/${state.code}/pins/${id}?clientId=${encodeURIComponent(clientId)}`, {
+  const UNDO_WINDOW_MS = 5000;
+  const pendingDeletions = new Map(); // id -> { pin, code, timer }
+
+  // Removes the pin locally right away and gives the person a few seconds to
+  // undo before the deletion is actually sent to the server (and to everyone
+  // else on the map) — so an undo never causes a delete/recreate flicker for
+  // anyone else watching the map.
+  function requestDeletePin(id) {
+    if (pendingDeletions.has(id)) return;
+    const pin = state.pins.find((p) => p.id === id);
+    if (!pin) return;
+    const code = state.code;
+
+    removePinLocal(id);
+
+    const timer = setTimeout(() => finalizeDeletePin(id), UNDO_WINDOW_MS);
+    pendingDeletions.set(id, { pin, code, timer });
+
+    showUndoToast(`Deleted "${pin.name}"`, UNDO_WINDOW_MS, () => undoDeletePin(id));
+  }
+
+  function undoDeletePin(id) {
+    const pending = pendingDeletions.get(id);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    pendingDeletions.delete(id);
+    if (state.code === pending.code) upsertPinLocal(pending.pin);
+  }
+
+  async function finalizeDeletePin(id) {
+    const pending = pendingDeletions.get(id);
+    if (!pending) return;
+    pendingDeletions.delete(id);
+    await fetch(`/api/maps/${pending.code}/pins/${id}?clientId=${encodeURIComponent(clientId)}`, {
       method: 'DELETE',
     });
-    removePinLocal(id);
   }
 
   // ---------- rendering ----------
@@ -294,14 +343,53 @@
     renderParticipants();
   }
 
+  function pinsEqual(a, b) {
+    return (
+      a.lat === b.lat &&
+      a.lng === b.lng &&
+      a.name === b.name &&
+      a.country === b.country &&
+      a.date === b.date &&
+      a.notes === b.notes &&
+      a.rating === b.rating &&
+      a.authorName === b.authorName &&
+      a.authorColor === b.authorColor
+    );
+  }
+
   function renderMarkers() {
-    for (const m of markers.values()) map.removeLayer(m);
-    markers.clear();
+    const currentIds = new Set(state.pins.map((p) => p.id));
+
+    // remove markers for pins that are gone, with a shrink-out animation
+    for (const [id, marker] of markers) {
+      if (currentIds.has(id)) continue;
+      markers.delete(id);
+      const el = marker.getElement();
+      if (el) {
+        el.classList.add('pin-removing');
+        setTimeout(() => map.removeLayer(marker), 200);
+      } else {
+        map.removeLayer(marker);
+      }
+    }
+
+    // add new pins / update ones that changed, leave unchanged markers alone
     for (const p of state.pins) {
+      const existing = markers.get(p.id);
+      if (existing) {
+        if (!pinsEqual(existing._pin, p)) {
+          existing.setLatLng([p.lat, p.lng]);
+          existing.setIcon(pinIcon(p));
+          existing.setPopupContent(popupHtml(p));
+          existing._pin = p;
+        }
+        continue;
+      }
       const marker = L.marker([p.lat, p.lng], { icon: pinIcon(p) }).addTo(map);
       marker.bindPopup(popupHtml(p));
       marker.on('popupopen', () => bindPopupActions());
       marker.on('click', () => setActiveListItem(p.id));
+      marker._pin = p;
       markers.set(p.id, marker);
     }
   }
@@ -330,7 +418,7 @@
       btn.addEventListener('click', () => openModal(btn.dataset.id))
     );
     container.querySelectorAll('[data-action="delete"]').forEach((btn) =>
-      btn.addEventListener('click', () => deletePinRemote(btn.dataset.id))
+      btn.addEventListener('click', () => requestDeletePin(btn.dataset.id))
     );
   }
 
@@ -420,7 +508,11 @@
   const form = document.getElementById('pinForm');
   const ratingInput = document.getElementById('ratingInput');
 
+  let modalCloseTimer = null;
+
   function openModal(id) {
+    if (modalCloseTimer) { clearTimeout(modalCloseTimer); modalCloseTimer = null; }
+    backdrop.classList.remove('closing');
     activeId = id;
     const editing = !!id;
     document.getElementById('modalTitle').textContent = editing ? 'Edit pin' : 'New pin';
@@ -439,15 +531,23 @@
   }
 
   function closeModal() {
-    backdrop.classList.remove('visible');
-    pendingLatLng = null;
-    activeId = null;
-    form.reset();
-    setRating(0);
+    backdrop.classList.add('closing');
+    modalCloseTimer = setTimeout(() => {
+      backdrop.classList.remove('visible', 'closing');
+      pendingLatLng = null;
+      activeId = null;
+      form.reset();
+      setRating(0);
+      modalCloseTimer = null;
+    }, 180);
   }
 
   function setRating(value) {
     ratingInput.dataset.value = String(value);
+    paintRating(value);
+  }
+
+  function paintRating(value) {
     ratingInput.querySelectorAll('span').forEach((s) => {
       s.classList.toggle('filled', Number(s.dataset.star) <= value);
     });
@@ -457,6 +557,14 @@
     const star = e.target.closest('span[data-star]');
     if (!star) return;
     setRating(Number(star.dataset.star));
+  });
+  ratingInput.addEventListener('mouseover', (e) => {
+    const star = e.target.closest('span[data-star]');
+    if (!star) return;
+    paintRating(Number(star.dataset.star));
+  });
+  ratingInput.addEventListener('mouseleave', () => {
+    paintRating(Number(ratingInput.dataset.value) || 0);
   });
 
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
@@ -468,7 +576,7 @@
   });
 
   document.getElementById('deletePinBtn').addEventListener('click', () => {
-    if (activeId) deletePinRemote(activeId);
+    if (activeId) requestDeletePin(activeId);
     closeModal();
   });
 
@@ -533,6 +641,44 @@
     el.textContent = text;
     container.appendChild(el);
     setTimeout(() => el.remove(), 3000);
+  }
+
+  function showUndoToast(text, duration, onUndo) {
+    const container = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = 'toast toast-undo';
+    el.style.setProperty('--toast-duration', `${duration}ms`);
+
+    const label = document.createElement('span');
+    label.textContent = text;
+    el.appendChild(label);
+
+    const undoBtn = document.createElement('button');
+    undoBtn.type = 'button';
+    undoBtn.className = 'toast-action';
+    undoBtn.textContent = 'Undo';
+    el.appendChild(undoBtn);
+
+    const bar = document.createElement('div');
+    bar.className = 'toast-progress';
+    el.appendChild(bar);
+
+    container.appendChild(el);
+
+    let dismissed = false;
+    const dismiss = () => {
+      if (dismissed) return;
+      dismissed = true;
+      el.classList.add('toast-leaving');
+      setTimeout(() => el.remove(), 220);
+    };
+
+    const timer = setTimeout(dismiss, duration);
+    undoBtn.addEventListener('click', () => {
+      clearTimeout(timer);
+      dismiss();
+      onUndo();
+    });
   }
 
   // ---------- helpers ----------
