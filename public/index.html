@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PinPoint — map the places you've been</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><text y=%2220%22 font-size=%2222%22>📍</text></svg>" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!-- ============== LANDING ============== -->
+<div id="landing" class="screen">
+  <div class="blobs" aria-hidden="true">
+    <span class="blob blob-a"></span>
+    <span class="blob blob-b"></span>
+    <span class="blob blob-c"></span>
+  </div>
+
+  <div class="landing-card">
+    <div class="landing-brand">
+      <span class="brand-pin">📍</span>
+      <span class="brand-script">PinPoint</span>
+    </div>
+    <p class="landing-tagline">Pin the places you've been — solo, or together with someone you love.</p>
+
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="create" type="button">Start a map</button>
+      <button class="tab" data-tab="join" type="button">Join with a code</button>
+    </div>
+
+    <form id="createForm" class="tab-panel active" novalidate>
+      <label>
+        What should we call your map?
+        <input type="text" id="createMapName" placeholder="e.g. Me &amp; Alex" maxlength="60" required autocomplete="off" />
+      </label>
+      <label>
+        Your name
+        <input type="text" id="createYourName" placeholder="e.g. Sam" maxlength="60" required autocomplete="off" />
+      </label>
+      <label>
+        Pick your color
+        <div class="color-picker" id="createColorPicker"></div>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Create map <span class="btn-emoji">✨</span></button>
+    </form>
+
+    <form id="joinForm" class="tab-panel" novalidate>
+      <label>
+        Map code
+        <input type="text" id="joinCode" class="code-input" placeholder="ABC123" maxlength="6" required autocomplete="off" />
+      </label>
+      <label>
+        Your name
+        <input type="text" id="joinYourName" placeholder="e.g. Alex" maxlength="60" required autocomplete="off" />
+      </label>
+      <label>
+        Pick your color
+        <div class="color-picker" id="joinColorPicker"></div>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Join map <span class="btn-emoji">🔑</span></button>
+    </form>
+
+    <p class="landing-error" id="landingError" hidden></p>
+  </div>
+</div>
+
+<!-- ============== MAP APP ============== -->
+<div id="mapApp" class="screen app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-pin">📍</span>
+      <span class="brand-name" id="mapTitle">PinPoint</span>
+    </div>
+
+    <button class="code-chip" id="mapCodeChip" type="button" title="Copy invite link">
+      <span class="chip-label">code</span>
+      <span class="chip-code" id="mapCodeText">••••••</span>
+      <span class="chip-icon">⧉</span>
+    </button>
+
+    <div class="stats" id="stats">
+      <div class="stat"><span class="stat-num" id="statPlaces">0</span><span class="stat-label">places</span></div>
+      <div class="stat"><span class="stat-num" id="statCountries">0</span><span class="stat-label">countries</span></div>
+    </div>
+
+    <div class="participants" id="participants"></div>
+
+    <div class="topbar-actions">
+      <button id="exportBtn" class="btn btn-ghost" title="Export this map's pins as JSON">Export</button>
+      <button id="themeToggle" class="btn btn-icon" title="Toggle theme">🌙</button>
+      <button id="leaveBtn" class="btn btn-ghost" title="Back to home">Leave</button>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <input type="search" id="searchInput" placeholder="Search your places…" />
+      </div>
+      <div class="sidebar-hint">Click anywhere on the map to drop a pin.</div>
+      <ul class="place-list" id="placeList"></ul>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🗺️</div>
+        <p>No places yet. Click the map to add your first pin together.</p>
+      </div>
+      <div class="identity-badge" id="identityBadge"></div>
+    </aside>
+
+    <main class="map-wrap">
+      <div id="map"></div>
+      <div class="toast-container" id="toastContainer"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ============== PIN MODAL ============== -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2 id="modalTitle">New pin</h2>
+    <form id="pinForm">
+      <label>
+        Name
+        <input type="text" id="pinName" placeholder="e.g. Kyoto, Japan" required maxlength="60" />
+      </label>
+      <label>
+        Country
+        <input type="text" id="pinCountry" placeholder="e.g. Japan" maxlength="60" />
+      </label>
+      <label>
+        Date visited
+        <input type="date" id="pinDate" />
+      </label>
+      <label>
+        Notes
+        <textarea id="pinNotes" rows="3" placeholder="Anything worth remembering…" maxlength="500"></textarea>
+      </label>
+      <label>
+        Rating
+        <div class="rating" id="ratingInput" data-value="0">
+          <span data-star="1">★</span><span data-star="2">★</span><span data-star="3">★</span><span data-star="4">★</span><span data-star="5">★</span>
+        </div>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="deletePinBtn" hidden>Delete</button>
+        <div class="modal-actions-right">
+          <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save pin</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

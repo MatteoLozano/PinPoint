@@ -1,0 +1,17 @@
+{
+  "name": "pinpoint",
+  "version": "1.0.0",
+  "description": "Pinpoint the places you've been — solo or together with someone, on a shared map.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
