@@ -236,12 +236,12 @@
     return L.divIcon({
       className: 'pin-marker-wrapper',
       html: `<div class="pin-marker">
-               <div class="pin-body" style="background:${pin.authorColor}"></div>
+               <div class="pin-body" style="background:${pin.authorColor}; --pin-color:${pin.authorColor}"></div>
                <div class="pin-initial">${initial}</div>
              </div>`,
-      iconSize: [30, 30],
-      iconAnchor: [15, 30],
-      popupAnchor: [0, -28],
+      iconSize: [20, 26],
+      iconAnchor: [10, 26],
+      popupAnchor: [0, -24],
     });
   }
 

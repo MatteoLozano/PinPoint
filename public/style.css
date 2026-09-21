@@ -551,46 +551,60 @@ button, input, textarea { font-family: inherit; }
 /* pin marker */
 .pin-marker {
   position: relative;
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 26px;
   cursor: pointer;
   animation: pinDrop 0.45s var(--ease-bounce);
   transform-origin: 50% 100%;
 }
 @keyframes pinDrop {
-  0% { opacity: 0; transform: translateY(-22px) scale(0.4); }
-  60% { opacity: 1; transform: translateY(3px) scale(1.05); }
+  0% { opacity: 0; transform: translateY(-16px) scale(0.4); }
+  60% { opacity: 1; transform: translateY(2px) scale(1.05); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 .leaflet-marker-icon.pin-removing .pin-marker {
   animation: pinRemove 0.2s var(--ease) forwards;
 }
 @keyframes pinRemove {
-  to { opacity: 0; transform: translateY(-6px) scale(0.4); }
+  to { opacity: 0; transform: translateY(-4px) scale(0.4); }
 }
-.pin-marker:hover { transform: translateY(-3px); }
+.pin-marker:hover { transform: translateY(-2px); }
 .pin-marker .pin-body {
   position: absolute;
-  width: 28px;
-  height: 28px;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-  left: 1px;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
   top: 0;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  left: 0;
+  border-radius: 50%;
   border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   transition: box-shadow 0.15s var(--ease);
 }
-.pin-marker:hover .pin-body { box-shadow: 0 5px 14px rgba(0,0,0,0.4); }
+.pin-marker .pin-body::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 7px solid var(--pin-color, currentColor);
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
+}
+.pin-marker:hover .pin-body { box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
 .pin-marker .pin-initial {
   position: absolute;
-  top: 5px;
+  top: 3px;
   left: 0;
-  width: 30px;
+  width: 20px;
   text-align: center;
   color: #fff;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 9px;
+  line-height: 14px;
   pointer-events: none;
 }
 
