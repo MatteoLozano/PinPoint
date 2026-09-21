@@ -43,6 +43,49 @@ Then open `http://localhost:3000`. The database file is created automatically at
 
 To let someone outside your network join, you'll need to deploy this app somewhere reachable (e.g. Render, Railway, Fly.io) — running it with `npm start` only serves it on your machine.
 
+## Deploying
+
+The app is a single Node process with a file-based SQLite database, so any host that gives you a **persistent disk/volume** works. The database (and any uploaded photos) live under `./data`, resolved relative to `server/db.js` — mount your volume there and nothing else needs to change.
+
+### Docker (any host)
+
+```bash
+docker build -t pinpoint .
+docker run -p 3000:3000 -v pinpoint_data:/app/data pinpoint
+```
+
+The `Dockerfile` uses `node:22-slim` (needed for the built-in `node:sqlite` module) and declares `/app/data` as a volume.
+
+### Render
+
+1. Push this repo to GitHub/GitLab and create a new **Blueprint** on [Render](https://render.com) pointing at it — it reads `render.yaml` and provisions the web service plus a 1GB persistent disk mounted at the app's `./data` directory automatically.
+2. Alternatively, create a Node web service by hand: build command `npm ci --omit=dev`, start command `node server/index.js`, and attach a disk mounted at `/opt/render/project/src/data`.
+
+### Fly.io
+
+```bash
+fly launch --no-deploy        # generates/attaches an app; rename `app` in fly.toml if it differs
+fly volumes create pinpoint_data --size 1 --region iad
+fly deploy
+```
+
+`fly.toml` mounts the volume at `/app/data` and exposes the app over HTTPS.
+
+### Railway
+
+1. Create a new project from this repo — Railway's Nixpacks builder auto-detects Node and uses `railway.json` for the start command.
+2. In the service's **Settings → Volumes**, attach a volume mounted at `/app/data` (Railway's Nixpacks build runs from `/app`) so the database survives redeploys.
+
 ## Data
 
 All maps and pins live in the SQLite database at `data/pinpoint.sqlite` on the server. Each browser remembers its name/color per map (in `localStorage`) so you don't have to re-enter it every visit.
+
+## Installable / offline (PWA)
+
+PinPoint is installable on desktop and mobile (`manifest.webmanifest`) and registers a service worker (`public/sw.js`) that:
+
+- Caches the app shell (HTML/JS/CSS) so the app still opens with no connection.
+- Caches each map's last-fetched data (`/api/maps/:code`), so a map you've already opened stays viewable (read-only) offline.
+- Leaves map tiles and pin writes untouched — editing pins and loading new map tiles still require a connection.
+
+Bump `CACHE_VERSION` in `public/sw.js` whenever the cached app-shell files change, so returning visitors pick up the new version instead of a stale cached one.

@@ -1,0 +1,25 @@
+# Fly.io app config: https://fly.io/docs/reference/configuration/
+# Run `fly launch --no-deploy` once to generate/attach an app, rename `app`
+# below to whatever Fly assigns, then `fly volumes create pinpoint_data
+# --size 1` (in the same region as the app) before the first `fly deploy`.
+app = "pinpoint"
+primary_region = "iad"
+
+[build]
+
+[env]
+  PORT = "3000"
+
+[[mounts]]
+  source = "pinpoint_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"

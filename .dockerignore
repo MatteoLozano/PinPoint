@@ -1,0 +1,11 @@
+node_modules
+data
+.git
+.gitignore
+.dockerignore
+*.sqlite
+*.sqlite-journal
+npm-debug.log
+.env
+.env.*
+README.md

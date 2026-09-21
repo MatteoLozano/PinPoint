@@ -1,0 +1,23 @@
+# Render "Blueprint" deploy config: https://render.com/docs/blueprint-spec
+# Import this repo on Render (New -> Blueprint) and it provisions the service
+# below, including a persistent disk for the SQLite database.
+services:
+  - type: web
+    name: pinpoint
+    runtime: node
+    plan: starter
+    branch: main
+    buildCommand: npm ci --omit=dev
+    startCommand: node server/index.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: PORT
+        value: 3000
+    disk:
+      name: pinpoint-data
+      # Render's working directory for a Node service is the repo root, so
+      # this lines up with the app's hardcoded ./data path (server/db.js).
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
