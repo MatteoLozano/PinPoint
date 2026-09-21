@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -26,7 +26,7 @@
       <span class="brand-pin">📍</span>
       <span class="brand-script">PinPoint</span>
     </div>
-    <p class="landing-tagline">Pin the places you've been — solo, or together with someone you love.</p>
+    <p class="landing-tagline">Pin the places you've been — solo, or on a shared map with friends, family, or anyone else.</p>
 
     <div class="tabs" role="tablist">
       <button class="tab active" data-tab="create" type="button">Start a map</button>
@@ -91,6 +91,7 @@
     <div class="participants" id="participants"></div>
 
     <div class="topbar-actions">
+      <button id="sidebarToggle" class="btn btn-icon sidebar-toggle" title="Show places list" type="button">☰</button>
       <button id="exportBtn" class="btn btn-ghost" title="Export this map's pins as JSON">Export</button>
       <button id="themeToggle" class="btn btn-icon" title="Toggle theme">🌙</button>
       <button id="leaveBtn" class="btn btn-ghost" title="Back to home">Leave</button>
@@ -98,9 +99,11 @@
   </header>
 
   <div class="body">
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <input type="search" id="searchInput" placeholder="Search your places…" />
+        <button id="sidebarClose" class="btn btn-icon sidebar-close" title="Close" type="button">✕</button>
       </div>
       <div class="sidebar-hint">Click anywhere on the map to drop a pin.</div>
       <ul class="place-list" id="placeList"></ul>

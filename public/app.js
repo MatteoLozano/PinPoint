@@ -2,7 +2,7 @@
   'use strict';
 
   const THEME_KEY = 'pinpoint.theme';
-  const PALETTE = ['#ff6b81', '#ff9f6b', '#ffcf6b', '#8bd17c', '#6bc5ff', '#a78bff', '#ff8bc6', '#6be0d0'];
+  const PALETTE = ['#3468e0', '#16a34a', '#f5a623', '#8b5cf6', '#06b6d4', '#e0483f', '#64748b', '#ec6fa0'];
   const clientId = crypto.randomUUID();
 
   const state = {
@@ -171,6 +171,8 @@
     history.pushState({}, '', '/');
     document.getElementById('mapApp').hidden = true;
     document.getElementById('landing').hidden = false;
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarBackdrop').classList.remove('open');
   }
 
   function showMapApp() {
@@ -189,11 +191,27 @@
 
   document.getElementById('leaveBtn').addEventListener('click', leaveMap);
 
+  // ---------- mobile sidebar drawer ----------
+  const sidebarEl = document.getElementById('sidebar');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+  function openSidebar() {
+    sidebarEl.classList.add('open');
+    sidebarBackdrop.classList.add('open');
+  }
+  function closeSidebar() {
+    sidebarEl.classList.remove('open');
+    sidebarBackdrop.classList.remove('open');
+  }
+  document.getElementById('sidebarToggle').addEventListener('click', openSidebar);
+  document.getElementById('sidebarClose').addEventListener('click', closeSidebar);
+  sidebarBackdrop.addEventListener('click', closeSidebar);
+
   document.getElementById('mapCodeChip').addEventListener('click', async () => {
     const url = `${location.origin}/m/${state.code}`;
     try {
       await navigator.clipboard.writeText(url);
-      showToast('Invite link copied! 💌');
+      showToast('Invite link copied!');
     } catch {
       showToast(`Share this code: ${state.code}`);
     }
@@ -247,7 +265,7 @@
       }
       if (msg.type === 'pin:created') {
         upsertPinLocal(msg.pin);
-        showToast(`${msg.pin.authorName} pinned ${msg.pin.name} 💕`);
+        showToast(`${msg.pin.authorName} pinned ${msg.pin.name}`);
       } else if (msg.type === 'pin:updated') {
         upsertPinLocal(msg.pin);
       } else if (msg.type === 'pin:deleted') {
@@ -461,6 +479,7 @@
         const marker = markers.get(p.id);
         if (marker) marker.openPopup();
         setActiveListItem(p.id);
+        if (window.innerWidth <= 820) closeSidebar();
       });
       list.appendChild(li);
     }
